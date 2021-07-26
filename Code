@@ -1,0 +1,258 @@
+import requests
+import json
+import pandas as pd
+from datetime import datetime as dt
+import numpy as np
+import calendar
+import math
+
+Use TD Ameritrade API to get AAPL's stock data from 10/01/2015 to 10/01/2020
+response = requests.get('https://api.tdameritrade.com/v1/marketdata/AAPL/pricehistory
+?apikey=ZUIADVWFQ9YTHGZXPUAZXJEJUIMJJXSK&periodType=month&frequencyType=daily&frequency=1&endDate=1601544610000&startDate=1443691810000&need
+ExtendedHoursData=false ')
+
+#Get JSON format and convert to list
+results = response.json
+values = response
+values = values.json() 
+
+#Get list and create a dataframe for AAPL's stock data
+data = values.get("candles")
+AAPL_data = pd.DataFrame (data,columns=['high','low','close', 'volume', 'datetime'])
+
+#Convert EPOCH milisecond time to datetime
+date_time = pd.DataFrame(AAPL_data.datetime)
+date_time = (date_time // 1000)
+date_time['datetime'] = pd.to_datetime(date_time['datetime'],unit='s')
+AAPL_data.datetime = date_time
+
+#Starting with $1,000.00 to invest in Apple on Day 1: October 1, 2015 at highest cost
+initial_investing = 1000
+start = AAPL_data.high[0:1]
+start = initial_investing / AAPL_data.high[0:1]
+start = round(start)
+remaining = initial_investing - (start * AAPL_data.high[0:1])
+tc = initial_investing - remaining
+
+#Money / shares / remaining balance
+money = remaining
+monthly_investment = 250
+total_shares = start
+
+flist = AAPL_data['datetime'].dt.day
+AAPL_data['date'] = flist
+
+copyday = AAPL_data['datetime'].dt.day
+AAPL_data['cday'] = copyday
+
+#Get the day of the week
+dayofweek = AAPL_data['datetime'].dt.day_name()
+AAPL_data['day'] = dayofweek
+
+#Get the month
+month = AAPL_data['datetime'].dt.month
+AAPL_data['month'] = month
+
+#Get the year
+year = AAPL_data['datetime'].dt.year
+AAPL_data['year'] = year
+
+#Group the dataframe by month and year to get the earliest day
+buyingday = pd.DataFrame()
+buyingday = AAPL_data.loc[(AAPL_data['date'] ==1) | (AAPL_data['date'] == 2) | (AAPL_data['date'] == 3) | (AAPL_data['date'] == 4)]
+
+grouped = buyingday.groupby(['year', 'month']).min()
+gpie = pd.DataFrame(grouped)
+gr = pd.DataFrame(gpie)
+
+highcost = gr.drop(columns=['close', 'day', 'date', 'cday', 'low', 'volume'])
+cost = start * AAPL_data.high[0:1]
+
+null_ = None
+#Edit dataframe to contain columns of monthly investment, monthly shares bought, cost, remaining money after monthly investment
+highcost['MonthlyInvestment'] = 250 
+highcost['Monthlyshares'] = (highcost['MonthlyInvestment'] / highcost['high'])
+highcost['Monthlyshares'] = highcost['Monthlyshares']
+highcost['Monthlyshares'] = highcost['Monthlyshares'].apply(lambda s: s // 1)
+highcost['cost'] = int
+highcost['cost'] = (highcost['Monthlyshares'] * highcost['high'])
+highcost['remainAfterMonthInvestment'] = float
+highcost['remainAfterMonthInvestment'] = (highcost['MonthlyInvestment'] - highcost['cost'])
+highcost.iloc[0:1,5:6] =  highcost.iloc[0:1,5:6] + float(remaining)
+highcost['cost'] = int
+highcost['cost'] = (highcost['Monthlyshares'] * highcost['high'])
+highcost['cost'] = highcost['cost'].round(2)
+
+
+def rmtotal():    
+        stockprice = list()
+        stockprice = highcost.high.values.tolist()
+        recur_remain = highcost.remainAfterMonthInvestment.tolist()
+        runningtotal = 0
+        finaltemp = list()
+        sharec = 0
+
+        for i in range(len(recur_remain)):
+            runningtotal = recur_remain[i] + float(runningtotal)
+            if stockprice[i] > runningtotal:
+                pass
+            elif stockprice[i] < runningtotal:
+                t = (runningtotal / stockprice[i])
+                t = math.floor(t)
+                c = runningtotal - (t * stockprice[i])
+                runningtotal = c
+                sharec = sharec + 1
+        finaltemp.append(runningtotal)
+        return sharec, runningtotal;
+
+def total_shares_monthly():
+    sharec = highcost['Monthlyshares'].sum(axis = 0)
+    return sharec;
+
+def liquid():
+    liq = (sharec * (highcost['high'].iloc[-1])) + runningtotal 
+    return liq.round(2);
+sharec = rmtotal()[0] + total_shares_monthly() + start[0]
+runningtotal = rmtotal()[-1]
+totalcost = highcost['cost'].sum(axis = 0)  + int(cost)
+totalcost = totalcost.round(2)
+liquidable = liquid()
+profit = liquidable - totalcost
+percentprofit = ((liquidable - totalcost)/liquidable) * 100
+percentprofit = percentprofit.round(2)
+
+highcost['RunningMonthlyShares'] = int
+def monthly():    
+        stockprice = list()
+        stockprice = highcost.high.values.tolist()
+        recur_remain = highcost.remainAfterMonthInvestment.tolist()
+        runningtotal = 0
+        sharec = 0
+        slist = list()
+        p = list()
+        mframe = pd.DataFrame()
+        mframe['stockprice'] = float
+        mframe['sharesadded'] = int
+        for i in range(len(recur_remain)):
+            runningtotal = recur_remain[i] + float(runningtotal)
+            if stockprice[i] > runningtotal:
+                mframe.stockprice = stockprice 
+            elif stockprice[i] < runningtotal:
+                t = (runningtotal / stockprice[i])
+                t = math.floor(t)
+                c = runningtotal - (t * stockprice[i])
+                runningtotal = c
+                mframe.sharesadded[i] = t
+                sharec = sharec + 1
+        mframe.fillna(0, inplace = True)
+        return mframe;
+mo = monthly()
+
+for i in range(len(highcost)):
+    if i == 0:
+        last = highcost.iloc[0, 3]
+        highcost.RunningMonthlyShares[i] = last + start[0]
+    elif i >= 1 and mo.sharesadded[i] == 0:
+        highcost.RunningMonthlyShares[i] = highcost.RunningMonthlyShares[i - 1] + highcost.Monthlyshares[i]
+    else:
+        last = highcost.RunningMonthlyShares[i - 1] 
+        crt = highcost.iloc[(i), 3]  
+        run = last + crt 
+        highcost.RunningMonthlyShares[i] = (highcost.RunningMonthlyShares[i - 1] + highcost.iloc[(i), 3]) + mo.sharesadded[i]
+        
+def  remaintotal():
+    runt = 0
+    p = highcost.copy()
+    for i in range(len(p)):
+        runt = p.remainAfterMonthInvestment[i] + float(runt)
+        if p.high[i] > runt:
+            pass
+        elif p.high[i] < runt:
+            rtsp = (runt / p.high[i])
+            rtsp = math.floor(rtsp)
+            co = runt - (rtsp * p.high[i])
+            runt = co
+        p.remainAfterMonthInvestment[i] = runt
+    return p;
+
+summary = remaintotal()
+summary['liquidable'] = float
+summary['runningCost'] = float
+summary.runningCost = float(initial_investing - remaining)
+summary['Profit'] = float
+
+for i in range(len(summary)):
+    summary.liquidable[i] = summary.RunningMonthlyShares[i] * summary.high[i]
+
+for i in range(len(summary)):
+    if i == 0:
+        summary.runningCost[i] = summary.runningCost[i] + summary.cost[i]
+    else: 
+        summary.runningCost[i] = summary.runningCost[i - 1] + summary.cost[i]
+
+for i in range(len(summary)):
+    summary.Profit[i] = summary.liquidable[i] - summary.runningCost[i]
+    
+    
+    liq_list = summary['liquidable'].tolist()
+da_list = summary['datetime'].tolist()
+
+import datetime as dt
+pldate = list()
+for i in da_list:  
+    i = i.isoformat()
+    pldate.append(i)
+    
+cra = 0
+plot_dates = list()
+plot_value = list()
+for i in range(len(pldate)):  
+    i = cra
+    if i > 0 and cra < len(pldate):
+        plot_value.append(liq_list[i])
+        plot_dates.append(pldate[i])
+    elif i == 0:
+        plot_value.append(liq_list[i])
+        plot_dates.append(pldate[i])
+    cra = i + 3
+    
+
+import matplotlib.pyplot as plt
+from matplotlib.pyplot import figure as fig
+fig = plt.figure()
+ax = plt.axes()
+
+#plot datapoints
+plt.plot(plot_dates, plot_value, color = 'green', marker = 'o')
+
+for i in range(len(plot_dates)):
+    tx = (plot_dates[i].replace("T0", " ,"))
+    plot_dates[i] = tx[0:10]
+    
+
+
+x= plot_dates
+y= plot_value
+line, = ax.plot(x, y, 'g')
+
+for i in range(len(plot_dates)):
+    ymax = y[i]
+    xpos = y.index(ymax)
+    xmax = x[xpos]
+
+    ax.annotate(round((ymax), 2), xy=(xmax, ymax),
+            arrowprops=dict(facecolor='green', shrink=0.05),
+            horizontalalignment='right', verticalalignment='bottom'
+            )
+
+#labels
+plt.title('AAPL Portfolio 5 years', fontsize = 25)
+plt.ylabel('Portfolio Value $', fontsize = 20)
+plt.xlabel('Date', fontsize = 20)
+
+#adjut linechart size
+fig.set_size_inches(23.5, 10.5, forward=True)
+plt.xticks(plot_dates, rotation = 20)
+plt.grid(True)
+#plt.show()
+
